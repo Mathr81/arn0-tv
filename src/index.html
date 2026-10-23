@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=1920, height=1080">
     <title>Arn0 Launcher</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/compat.css">
 </head>
 <body>
     <div id="stage">
@@ -159,6 +160,7 @@
     </div>
 
     <!-- tizen-mock.js does nothing on the TV (window.tizen already exists) -->
+    <script src="js/compat.js"></script>
     <script src="js/tizen-mock.js"></script>
     <!-- Gitignored per-TV overrides, merged by config.js below. Empty unless you create it. -->
     <script src="js/config.local.js"></script>
