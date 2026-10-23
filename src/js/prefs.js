@@ -11,6 +11,7 @@
     function defaults() {
         var cfg = window.LAUNCHER_CONFIG || {};
         var theme = cfg.theme || {};
+        var wx = cfg.weather || {};
         return {
             sound: {
                 enabled: cfg.sound ? cfg.sound.enabled !== false : true,
@@ -31,9 +32,20 @@
             appearance: {
                 clock: '24h',           // '24h' | '12h'
                 showDate: true,
-                locale: cfg.locale || 'en-GB',
+                locale: cfg.locale || 'en-GB',   // date and interface language (js/i18n.js)
                 font: 'manrope',        // see Appearance.FONTS
-                names: 'always'         // app names under tiles: 'always' | 'focused' | 'never'
+                names: 'always',        // app names under tiles: 'always' | 'focused' | 'never'
+                style: 'original',      // 'original' | 'tvos' (lift and sheen instead of the ring)
+                order: 'manual',        // Home apps: 'manual' | 'recent' (last opened first)
+                homeWeather: true       // weather next to the date on Home (when a city is set)
+            },
+            recent: {},                 // { appId: last launch time } for order: 'recent'
+            returnHere: false,          // EXPERIMENTAL: come back to the launcher when an app closes
+            weather: {
+                city: null,             // display name; set from Settings → Weather
+                latitude: typeof wx.latitude === 'number' ? wx.latitude : null,
+                longitude: typeof wx.longitude === 'number' ? wx.longitude : null,
+                unit: wx.unit || 'celsius'
             },
             home: null,                 // [{ id, label, brand }] once edited; null = config.js apps
             inputs: null                // [{ hdmi, label, brand, method, hidden }] once edited; null = config.js
@@ -56,6 +68,9 @@
                 merge(prefs.wallpaper, saved.wallpaper);
                 merge(prefs.screensaver, saved.screensaver);
                 merge(prefs.appearance, saved.appearance);
+                merge(prefs.weather, saved.weather);
+                if (saved.recent && typeof saved.recent === 'object') prefs.recent = saved.recent;
+                prefs.returnHere = saved.returnHere === true;
                 if (Array.isArray(saved.home) && saved.home.length) prefs.home = saved.home;
                 if (Array.isArray(saved.inputs)) prefs.inputs = saved.inputs;
             } else {

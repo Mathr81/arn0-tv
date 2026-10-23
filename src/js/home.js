@@ -11,6 +11,7 @@
     var $ = UI.$;
     var el = UI.el;
     var KEY = UI.KEY;
+    var t = I18n.t;
 
     var state = {
         apps: [],              // launchable apps from the TV (or the cache)
@@ -48,12 +49,32 @@
         return h;
     }
 
+    // Square store icons (CANAL+, Nuvio…) carry their own background: filling the tile with the
+    // colour at their left edge makes them read as one full-bleed logo instead of a box in a box.
+    function edgeColour(img) {
+        try {
+            var c = document.createElement('canvas');
+            c.width = c.height = 8;
+            var g = c.getContext('2d');
+            g.drawImage(img, 0, 0, 8, 8);
+            var d = g.getImageData(0, 3, 1, 1).data;
+            return d[3] > 200 ? 'rgb(' + d[0] + ',' + d[1] + ',' + d[2] + ')' : null;
+        } catch (e) {
+            return null; // canvas tainted by a file:// icon from another package
+        }
+    }
+
     // Installed apps report a native path; it may or may not be readable from a web app.
     function tryIcon(tile, mono, path) {
         var img = new Image();
         img.className = 'icon';
         img.onload = function () {
             mono.style.display = 'none';
+            var edge = edgeColour(img);
+            tile.style.background = edge || '#1a1d24';
+            // An opaque square icon fills the tile edge to edge, so its own background (often a
+            // gradient, like CANAL+) becomes the tile instead of a box sitting inside it.
+            if (edge) img.className = 'icon full';
             tile.appendChild(img);
         };
         img.src = path.charAt(0) === '/' ? 'file://' + path : path;
@@ -101,13 +122,13 @@
             '<rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/>' +
             '<rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>';
         wrap.appendChild(tile);
-        wrap.appendChild(el('div', 'label', 'All apps'));
+        wrap.appendChild(el('div', 'label', t('All apps')));
         wrap._item = { kind: 'all' };
         return wrap;
     }
 
     function inputTile(input) {
-        var brand = findBrand(input.brand || '') || { bg: '#2a2f3a', fg: '#fff', mark: null };
+        var brand = findBrand(input.brand || '') || findBrand({ name: input.label }) || { bg: '#2a2f3a', fg: '#fff', mark: null };
         var wrap = el('div', 'input');
         var tile = el('div', 'tile');
         tile.style.background = brand.bg;
@@ -128,7 +149,7 @@
 
     // Console tile for Settings lists: brand colours and logo only.
     function miniInputTile(input) {
-        var brand = findBrand(input.brand || '');
+        var brand = findBrand(input.brand || '') || findBrand({ name: input.label });
         return miniTile({ label: input.label, brand: brand && { key: brand.key, bg: brand.bg, fg: brand.fg, mark: brand.mark } });
     }
 
@@ -151,7 +172,13 @@
     }
 
     function homeItems() {
-        return Apps.curated(state.apps, { apps: homeEntries() });
+        var items = Apps.curated(state.apps, { apps: homeEntries() });
+        if (Prefs.get().appearance.order !== 'recent') return items;
+        var recent = Prefs.get().recent;
+        // Stable: apps never opened keep their manual order after the recent ones.
+        return items.map(function (item, i) { return { item: item, i: i, t: recent[item.id] || 0 }; })
+            .sort(function (a, b) { return (b.t - a.t) || (a.i - b.i); })
+            .map(function (x) { return x.item; });
     }
 
     function setHomeItems(items) {
@@ -204,7 +231,7 @@
         UI.resetScroll(grid);
         var items = Apps.allSorted(state.apps, state.showEverything);
         items.forEach(function (item) { grid.appendChild(appTile(item)); });
-        $('all-count').textContent = items.length + ' apps';
+        $('all-count').textContent = t('{0} apps', items.length);
     }
 
     function renderLab() {
@@ -249,20 +276,37 @@
         });
     }
 
+    // Brief push-in on OK, like a physical button.
+    function press(target) {
+        if (!target) return;
+        target.classList.add('pressed');
+        setTimeout(function () { target.classList.remove('pressed'); }, 160);
+    }
+
     function launchApp(item) {
-        runLogged('Launch ' + item.id, Apps.launch(item.id)).catch(function (err) {
-            UI.toast('Could not open ' + item.label + ': ' + DevLog.errorText(err));
+        // Tizen 4 takes a few seconds to bring an app up; without this, OK looks like it did nothing.
+        UI.toast(t('Opening {0}…', item.label));
+        Prefs.get().recent[item.id] = Date.now();
+        Prefs.save();
+        var start = Prefs.get().returnHere
+            ? Apps.launchReturning(item.id).catch(function (err) {
+                log('Returning launch failed, plain launch instead: ' + DevLog.errorText(err));
+                return Apps.launch(item.id);
+            })
+            : Apps.launch(item.id);
+        runLogged('Launch ' + item.id, start).catch(function (err) {
+            UI.toast(t('Could not open {0}: {1}', item.label, DevLog.errorText(err)));
         });
     }
 
     function openInput(item, method) {
         method = method || item.method || cfg.inputMethod;
-        UI.toast('Switching to ' + item.label + '…');
+        UI.toast(t('Switching to {0}…', item.label));
         runLogged('Input HDMI ' + item.hdmi + ' via ' + method, Inputs.open(item.hdmi, method)).then(function (result) {
             log('Current source now: ' + Inputs.describeSource(Inputs.current()));
             if (result === 'inapp') enterTvMode();
         }).catch(function (err) {
-            UI.toast('Could not switch to ' + item.label + ': ' + DevLog.errorText(err));
+            UI.toast(t('Could not switch to {0}: {1}', item.label, DevLog.errorText(err)));
         });
     }
 
@@ -324,10 +368,21 @@
 
     function updateClock() {
         var d = new Date();
-        var t = Appearance.time(d);
-        $('time-main').textContent = t.time;
-        $('time-suffix').textContent = t.suffix;
+        var clock = Appearance.time(d);
+        $('time-main').textContent = clock.time;
+        $('time-suffix').textContent = clock.suffix;
         $('date').textContent = Appearance.date(d);
+        renderWeather();
+    }
+
+    // Same rule as the screen saver: no usable reading, no widget.
+    function renderWeather() {
+        var w = Weather.current();
+        $('home-wx').classList.toggle('hidden', !w);
+        if (!w) return;
+        $('home-wx-icon').innerHTML = w.icon;
+        $('home-wx-temp').textContent = w.temp;
+        $('home-wx-detail').textContent = w.detail;
     }
 
     // The TV takes ~4 s to list its ~450 apps, so Home is drawn from the last list we saw
@@ -391,7 +446,7 @@
             writeCache(list);
             setApps(list);
         }).catch(function (err) {
-            UI.toast('Could not list apps: ' + DevLog.errorText(err));
+            UI.toast(t('Could not list apps: {0}', DevLog.errorText(err)));
             log('App list failed: ' + DevLog.errorText(err));
         });
     }
@@ -412,7 +467,8 @@
             rows: function () {
                 return [[$('gear')], UI.children($('apps-row')), UI.children($('inputs-row'))];
             },
-            activate: function (item) {
+            activate: function (item, target) {
+                press(target);
                 if (item.kind === 'app') launchApp(item);
                 else if (item.kind === 'all') UI.show('all');
                 else if (item.kind === 'input') openInput(item);
@@ -457,7 +513,9 @@
         });
         Appearance.apply();
         updateClock();
-        setInterval(updateClock, 10000);
+        // Nothing to draw while another app is in front (background-support keeps us running).
+        setInterval(function () { if (!document.hidden) updateClock(); }, 10000);
+        Weather.onUpdate(renderWeather);
         renderLab();
         var cached = readCache();
         if (cached && cached.length) setApps(cached);
@@ -471,6 +529,16 @@
                 return;
             }
             updateClock();
+            Weather.refresh();
+            // Recent order: the app just closed moves to the front, and focus goes with it.
+            if (Prefs.get().appearance.order === 'recent' && UI.isVisible('home')) {
+                renderHome();
+                var first = $('apps-row').firstChild;
+                if (first) {
+                    UI.resetScroll($('apps-row'));
+                    UI.focusOn(first);
+                }
+            }
             refreshInputStatus();
             if (UI.isVisible('home')) Wallpaper.homeShown();
             if (Date.now() - state.lastFetch > REFRESH_AFTER_MS) setTimeout(loadApps, 1500);
@@ -494,6 +562,7 @@
         refreshInputStatus: refreshInputStatus,
         renderLab: renderLab,
         updateClock: updateClock,
+        render: renderHome,
         reloadApps: loadApps,
         miniTile: miniTile,
         miniInputTile: miniInputTile,

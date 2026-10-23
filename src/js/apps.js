@@ -45,6 +45,29 @@
         }), 8000, 'Launch');
     }
 
+    /*
+     * EXPERIMENTAL (Settings → Avancé). Launches through an app control with a reply listener:
+     * Tizen answers the caller when the launched app ends, and the launcher relaunches itself
+     * to come back to the front. Nothing runs meanwhile (the launcher's JavaScript is paused in
+     * the background), so the app gets the same CPU and memory as a plain launch. Whether the
+     * answer arrives depends on how each app exits; if it never does, this behaves like launch().
+     */
+    var MIN_SESSION_MS = 4000; // an answer sooner than this is the app acknowledging, not closing
+
+    function launchReturning(appId) {
+        var started = Date.now();
+        var back = function () {
+            var self = selfAppId();
+            if (!self || Date.now() - started < MIN_SESSION_MS) return;
+            try { tizen.application.launch(self); } catch (e) { /* stay where we are */ }
+        };
+        return withTimeout(new Promise(function (resolve, reject) {
+            var control = new tizen.ApplicationControl('http://tizen.org/appcontrol/operation/default');
+            tizen.application.launchAppControl(control, appId, resolve, reject,
+                { onsuccess: back, onfailure: back });
+        }), 8000, 'Launch');
+    }
+
     function isConsumer(app) {
         if (PRELOADED.indexOf(app.id) >= 0) return true;
         if (!app.show || INTERNAL.indexOf(app.id) >= 0) return false;
@@ -121,6 +144,7 @@
         allSorted: allSorted,
         describe: describe,
         launch: launch,
+        launchReturning: launchReturning,
         withTimeout: withTimeout
     };
 })();
