@@ -432,7 +432,7 @@
         ed.items = Home.homeItems().slice();
         var onHome = {};
         ed.items.forEach(function (i) { onHome[i.id] = true; });
-        ed.others = Apps.allSorted(Home.apps(), false).filter(function (a) { return !onHome[a.id]; });
+        ed.others = Apps.allSorted(Home.apps(), false, ed.items).filter(function (a) { return !onHome[a.id]; });
     }
 
     function edRow(item, moving) {

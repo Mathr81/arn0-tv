@@ -229,7 +229,7 @@
         var grid = $('all-grid');
         grid.innerHTML = '';
         UI.resetScroll(grid);
-        var items = Apps.allSorted(state.apps, state.showEverything);
+        var items = Apps.allSorted(state.apps, state.showEverything, homeItems());
         items.forEach(function (item) { grid.appendChild(appTile(item)); });
         $('all-count').textContent = t('{0} apps', items.length);
     }

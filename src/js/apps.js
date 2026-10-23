@@ -15,7 +15,9 @@
         'ZODRT12q2l.WebAccountExtension', 'ByJlgt0XeD.CastSettingsApp', 'tv6pbVMQFF.PrivacyChoices',
         '2022ePop01.SmartTV', 'w2VwCK465D.OTApp', 'J9fZJDMi1v.SecurityCenter'
     ];
-    var NOISE = /service|worker|preview|promotion|plugin|launcher|test|sdk|^ep[ -]|factory|daemon|dummy|agent|e-?manual|account|adplayer|privacy|security/i;
+    // Not 'launcher': CANAL+ and Prime Video ship as QmpwflxWdt.CanalPlusLauncher and
+    // evKhCgZelL.AmazonIgnitionLauncher2; this launcher is already left out by its own id.
+    var NOISE = /service|worker|preview|promotion|plugin|test|sdk|^ep[ -]|factory|daemon|dummy|agent|e-?manual|account|adplayer|privacy|security/i;
 
     function withTimeout(promise, ms, what) {
         return new Promise(function (resolve, reject) {
@@ -107,10 +109,26 @@
         return out;
     }
 
-    function allSorted(apps, showEverything) {
+    /*
+     * pinned: the Home items. Their label and brand carry over, so an app reads the same in both
+     * places ("Moonlight", not the store's "MoonlightNaCl"). Some TVs also hold two copies of one
+     * app (a preloaded org.tizen.netflix-app and the store's Netflix): outside "show everything",
+     * one entry per name is kept, the one pinned on Home if either is.
+     */
+    function allSorted(apps, showEverything, pinned) {
+        var onHome = {};
+        (pinned || []).forEach(function (p) { onHome[p.id] = { label: p.label, brand: p.brand && p.brand.key }; });
+        var seen = {};
         return apps
             .filter(function (a) { return showEverything ? a.show : isConsumer(a); })
-            .map(function (a) { return toItem(a, {}); })
+            .map(function (a) { return toItem(a, onHome[a.id] || {}); })
+            .sort(function (x, y) { return (onHome[y.id] ? 1 : 0) - (onHome[x.id] ? 1 : 0); })
+            .filter(function (item) {
+                var key = item.label.toLowerCase();
+                if (!showEverything && seen[key]) return false;
+                seen[key] = true;
+                return true;
+            })
             .sort(function (x, y) { return x.label.localeCompare(y.label); });
     }
 
