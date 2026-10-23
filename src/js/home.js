@@ -101,7 +101,7 @@
     }
 
     function appTile(item) {
-        var wrap = el('div', 'app');
+        var wrap = el('div', 'app' + (item.hidden ? ' is-hidden' : ''));
         wrap.appendChild(tileFace(item));
         wrap.appendChild(el('div', 'label', item.label));
         wrap._item = item;
@@ -195,7 +195,7 @@
         var row = $('apps-row');
         row.innerHTML = '';
         var items = homeItems();
-        if (!items.length) items = Apps.allSorted(state.apps, false).slice(0, 8);
+        if (!items.length) items = Apps.allSorted(state.apps, false, [], Prefs.get().hiddenApps).slice(0, 8);
         items.forEach(function (item) { row.appendChild(appTile(item)); });
         row.appendChild(allAppsTile());
 
@@ -229,7 +229,7 @@
         var grid = $('all-grid');
         grid.innerHTML = '';
         UI.resetScroll(grid);
-        var items = Apps.allSorted(state.apps, state.showEverything, homeItems());
+        var items = Apps.allSorted(state.apps, state.showEverything, homeItems(), Prefs.get().hiddenApps);
         items.forEach(function (item) { grid.appendChild(appTile(item)); });
         $('all-count').textContent = t('{0} apps', items.length);
     }
@@ -344,17 +344,42 @@
     }
 
     // Colour keys are hidden shortcuts; everything is also reachable from Settings.
+    // Green in All apps: hide the focused app from All apps (or show it again under Yellow).
+    function allAppsMenu() {
+        var focused = document.querySelector('#all-grid .focused');
+        var item = focused && focused._item;
+        if (!item) return;
+        var hidden = Prefs.get().hiddenApps;
+        var set = function (hide) {
+            var i = hidden.indexOf(item.id);
+            if (hide && i < 0) hidden.push(item.id);
+            if (!hide && i >= 0) hidden.splice(i, 1);
+            Prefs.save();
+            UI.show('all', { back: true });
+            UI.toast(t(hide ? '{0} hidden' : '{0} shown again', item.label));
+            listeners.forEach(function (fn) { fn(); });
+        };
+        UI.menu(item.label, [
+            item.hidden
+                ? { label: 'Show in All apps', run: function () { set(false); } }
+                : { label: 'Hide from All apps', run: function () { set(true); } },
+            { label: 'Cancel' }
+        ]);
+    }
+
     function colourKey(k, view) {
         if (k === KEY.RED || k === KEY.R) {
             UI.show(view === 'all' ? 'home' : 'all');
         } else if (k === KEY.GREEN || k === KEY.G) {
             if (view === 'home') nextWallpaper();
+            else if (view === 'all') allAppsMenu();
         } else if (k === KEY.BLUE || k === KEY.B) {
             UI.show(view === 'lab' ? 'home' : 'lab');
         } else if (k === KEY.YELLOW || k === KEY.Y) {
             if (view === 'all') {
                 state.showEverything = !state.showEverything;
                 UI.show('all', { back: true });
+                UI.refreshHints();
             } else if (view === 'home' && window.RunnerGame) {
                 RunnerGame.open();
             } else return false;
@@ -484,7 +509,10 @@
             rows: function () { return UI.chunk(UI.children($('all-grid')), GRID_COLS); },
             onShow: renderAll,
             activate: launchApp,
-            hints: [['OK', 'Open'], ['Back', 'Home']]
+            hints: function () {
+                return [['OK', 'Open'], ['Green', 'Options'],
+                    ['Yellow', state.showEverything ? 'Usual apps' : 'Everything'], ['Back', 'Home']];
+            }
         });
 
         UI.register('lab', {

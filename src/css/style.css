@@ -293,6 +293,10 @@ h1, h2 {
     object-fit: contain;
 }
 
+/* Hidden from All apps, listed only under "show everything". */
+.app.is-hidden .tile,
+.app.is-hidden .label { opacity: 0.4; }
+
 .all-tile {
     background: rgba(255, 255, 255, 0.08);
 }

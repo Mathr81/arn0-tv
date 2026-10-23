@@ -48,7 +48,8 @@
                 unit: wx.unit || 'celsius'
             },
             home: null,                 // [{ id, label, brand }] once edited; null = config.js apps
-            inputs: null                // [{ hdmi, label, brand, method, hidden }] once edited; null = config.js
+            inputs: null,               // [{ hdmi, label, brand, method, hidden }] once edited; null = config.js
+            hiddenApps: []              // app ids left out of All apps and Add apps (Green in All apps)
         };
     }
 
@@ -73,6 +74,7 @@
                 prefs.returnHere = saved.returnHere === true;
                 if (Array.isArray(saved.home) && saved.home.length) prefs.home = saved.home;
                 if (Array.isArray(saved.inputs)) prefs.inputs = saved.inputs;
+                if (Array.isArray(saved.hiddenApps)) prefs.hiddenApps = saved.hiddenApps;
             } else {
                 var legacy = localStorage.getItem(LEGACY_WALLPAPER_KEY);
                 if (legacy) prefs.wallpaper.photo = legacy;

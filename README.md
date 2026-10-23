@@ -231,7 +231,10 @@ or not the panel keeps up. Judge it by eye on the TV.
 `getAppsInfo` reports many internal services as visible, so **All apps** keeps only ids that look
 like store apps (`AbCdEfGhIj.Name`, or numeric) plus a short list of preinstalled consumer apps, and
 drops names containing service/worker/agent/e-manual. Yellow shows everything when you need to find
-something. The id of the focused app is shown bottom-left — pin it in `config.js` as `{ id: '...' }`,
+something. Green on an app hides it from All apps and Add apps (a duplicate, a preloaded app that
+cannot be uninstalled); hidden apps show dimmed under Yellow, where Green brings them back. Two
+copies of one app (a preloaded `org.tizen.netflix-app` next to the store's Netflix) are listed once,
+and apps pinned on Home keep their Home name. The id of the focused app is shown bottom-left — pin it in `config.js` as `{ id: '...' }`,
 which is more reliable than a name match.
 
 ### HDMI inputs

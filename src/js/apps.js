@@ -114,14 +114,22 @@
      * places ("Moonlight", not the store's "MoonlightNaCl"). Some TVs also hold two copies of one
      * app (a preloaded org.tizen.netflix-app and the store's Netflix): outside "show everything",
      * one entry per name is kept, the one pinned on Home if either is.
+     *
+     * hidden: ids the viewer chose to hide. Left out, except under "show everything", where they
+     * come back marked so they can be shown again.
      */
-    function allSorted(apps, showEverything, pinned) {
+    function allSorted(apps, showEverything, pinned, hidden) {
+        hidden = hidden || [];
         var onHome = {};
         (pinned || []).forEach(function (p) { onHome[p.id] = { label: p.label, brand: p.brand && p.brand.key }; });
         var seen = {};
         return apps
-            .filter(function (a) { return showEverything ? a.show : isConsumer(a); })
-            .map(function (a) { return toItem(a, onHome[a.id] || {}); })
+            .filter(function (a) { return showEverything ? a.show : isConsumer(a) && hidden.indexOf(a.id) < 0; })
+            .map(function (a) {
+                var item = toItem(a, onHome[a.id] || {});
+                item.hidden = hidden.indexOf(a.id) >= 0;
+                return item;
+            })
             .sort(function (x, y) { return (onHome[y.id] ? 1 : 0) - (onHome[x.id] ? 1 : 0); })
             .filter(function (item) {
                 var key = item.label.toLowerCase();
