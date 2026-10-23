@@ -21,6 +21,7 @@
                 mode: theme.wallpaper ? 'photo' : 'off',   // 'off' | 'photo' | 'rotate'
                 photo: theme.wallpaper || 'forest',
                 interval: '15m',        // see Wallpaper.INTERVALS
+                source: 'builtin',      // 'builtin' photos, or 'online' (js/online-wallpapers.js)
                 lastChange: 0
             },
             screensaver: {

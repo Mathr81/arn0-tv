@@ -101,7 +101,9 @@
     function wallpaperSummary() {
         var p = Prefs.get().wallpaper;
         if (p.mode === 'off') return 'Off';
-        if (p.mode === 'rotate') return t('Rotate') + ' · ' + t(Wallpaper.interval(p.interval).label).toLowerCase();
+        if (p.mode === 'rotate') {
+            return t(p.source === 'online' ? 'Online' : 'Rotate') + ' · ' + t(Wallpaper.interval(p.interval).label).toLowerCase();
+        }
         var w = Wallpaper.find(p.photo);
         return w ? w.title : 'Photo';
     }
@@ -153,6 +155,13 @@
             modes.appendChild(chip(m[1], p.mode === m[0], { kind: 'mode', key: m[0] }));
         });
 
+        var sources = $('bg-source');
+        sources.innerHTML = '';
+        [['builtin', 'Built-in'], ['online', 'Online, always new']].forEach(function (s) {
+            sources.appendChild(chip(s[1], p.source === s[0], { kind: 'source', key: s[0] }));
+        });
+        $('bg-source-block').classList.toggle('hidden', p.mode === 'off');
+
         var intervals = $('bg-interval');
         intervals.innerHTML = '';
         Wallpaper.INTERVALS.forEach(function (i) {
@@ -184,6 +193,12 @@
             p.lastChange = Date.now();
         } else if (item.kind === 'photo') {
             p.photo = item.key;
+        } else if (item.kind === 'source') {
+            p.source = item.key;
+            if (item.key === 'online') {
+                UI.toast('Fetching new photos…');
+                OnlineWallpapers.fill();
+            }
         }
         Prefs.save();
         Wallpaper.apply();

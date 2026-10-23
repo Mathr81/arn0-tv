@@ -183,6 +183,14 @@ Saved on the TV in `localStorage`. They survive restarts and in-place updates, n
 
 ### Wallpapers
 
+**Settings → Background → Photos → Online** swaps the built-in set for an endless stream of
+landscapes from Wikimedia Commons (*Featured pictures of landscapes*: curated, freely licensed, no
+API key; each credit names the author and licence). The launcher bakes the same readability scrim
+into each photo on a canvas, once, and keeps six ready, adding new ones as the rotation advances.
+Chromium 56 encodes that JPEG on the main thread (~0.9 s a photo on a UE50NU7025), so a photo is
+only prepared while the launcher is in front and the remote has been still for 8 s; never while
+another app is in front. Offline, the built-in set stands in.
+
 Photos are cropped to 1920x1080 and darkened (top-left for the clock, bottom for the tiles) at
 build time, so the TV only ever draws one plain JPEG on its own layer. Drop photos in a folder and
 run `node scripts/prepare-wallpapers.mjs <folder>`; friendly names and crop positions for known
